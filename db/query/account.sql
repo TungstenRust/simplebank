@@ -1,29 +1,40 @@
--- This names the SQL query 'CreateAccount' and indicates it returns a single row
 -- name: CreateAccount :one
 INSERT INTO accounts (
-    owner, balance, currency
+    owner,
+    balance,
+    currency
 ) VALUES (
-    $1, $2, $3 -- Placeholder values for 'owner', 'balance', and 'currency'
-) RETURNING *; -- Returns all columns of the newly inserted row
+             $1, $2, $3
+         ) RETURNING *;
 
 -- name: GetAccount :one
 SELECT * FROM accounts
-WHERE id = $1 -- Filters the rows to find where the 'id' column matches the value of $1
-LIMIT 1; -- Limits the query to return only one row
+WHERE id = $1 LIMIT 1;
+
+-- name: GetAccountForUpdate :one
+SELECT * FROM accounts
+WHERE id = $1 LIMIT 1
+FOR NO KEY UPDATE;
 
 -- name: ListAccounts :many
 SELECT * FROM accounts
-ORDER BY id -- Orders the results by the 'id' column
-LIMIT $1 -- Limits the number of rows returned to the value of $1
-OFFSET $2; -- Skips the first $2 rows before beginning to return rows in the result set
+WHERE owner = $1
+ORDER BY id
+    LIMIT $2
+OFFSET $3;
 
--- This names the SQL query 'UpdateAccount' and indicates it is an execute command without returning rows
--- name: UpdateAccount :exec
-UPDATE accounts -- Update 'balance' in 'accounts' table
-SET balance = $2 -- Sets the 'balance' column to a new value specified by $2
-WHERE id = $1; -- Filters to update the row where 'id' matches the value of $1
+-- name: UpdateAccount :one
+UPDATE accounts
+SET balance = $2
+WHERE id = $1
+    RETURNING *;
 
--- This names the SQL query 'DeleteAccount' and indicates it is an execute command without returning rows
+-- name: AddAccountBalance :one
+UPDATE accounts
+SET balance = balance + sqlc.arg(amount)
+WHERE id = sqlc.arg(id)
+    RETURNING *;
+
 -- name: DeleteAccount :exec
 DELETE FROM accounts
-WHERE id = $1; -- Filters to delete the row where 'id' matches the value of $1
+WHERE id = $1;
