@@ -1,15 +1,15 @@
 package util
 
-const(
+const (
 	USD = "USD"
 	EUR = "EUR"
 	CAD = "CAD"
 )
 
-func  IsSupportedCurrency(currency string) bool {
+func IsSupportedCurrency(currency string) bool {
 	switch currency {
-	case USD, EUR, CAD;
-	return true
+	case USD, EUR, CAD:
+		return true
 	}
 	return false
 }
