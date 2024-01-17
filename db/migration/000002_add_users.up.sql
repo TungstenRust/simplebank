@@ -1,5 +1,5 @@
 CREATE TABLE "users" (
-"username" vaarchar PRIMARY KEY,
+"username" varchar PRIMARY KEY,
 "hashed_password" varchar NOT NULL,
 "full_name" varchar NOT NULL,
 "email" varchar UNIQUE NOT NULL,

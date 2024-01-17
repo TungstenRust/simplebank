@@ -21,10 +21,10 @@ INSERT INTO users (
 `
 
 type CreateUserParams struct {
-	Username       interface{} `json:"username"`
-	HashedPassword string      `json:"hashed_password"`
-	FullName       string      `json:"full_name"`
-	Email          string      `json:"email"`
+	Username       string `json:"username"`
+	HashedPassword string `json:"hashed_password"`
+	FullName       string `json:"full_name"`
+	Email          string `json:"email"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -50,7 +50,7 @@ SELECT username, hashed_password, full_name, email, password_changed_at FROM use
 WHERE username = $1 LIMIT 1
 `
 
-func (q *Queries) GetUser(ctx context.Context, username interface{}) (User, error) {
+func (q *Queries) GetUser(ctx context.Context, username string) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUser, username)
 	var i User
 	err := row.Scan(
