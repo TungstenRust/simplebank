@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: simple-bank-api
-          image: #bura aws ecr -daki imagenin linkini vur
+          image: #bura aws ecr -daki imagenin linkini vur:latest
           # apply etmemishden evvel node-larin sayini autoscalingde desired capacity 1 ele aws consolede
           ports:
             - containerPort: 8080
