@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: simple-bank-api
-          image: 760486049168.dkr.ecr.eu-west-1.amazonaws.com/simplebank:latest
+          image: #bura aws ecr -daki imagenin linkini vur:latest
+          # apply etmemishden evvel node-larin sayini autoscalingde desired capacity 1 ele aws consolede
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
