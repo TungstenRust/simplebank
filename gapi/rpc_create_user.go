@@ -1,6 +1,7 @@
 package gapi
 
 import (
+	"context"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/pb"
 	"github.com/TungstenRust/simplebank/util"
