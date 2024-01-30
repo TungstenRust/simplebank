@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/TungstenRust/simplebank/token"
 	"google.golang.org/grpc/metadata"
+	"strings"
 )
 
 const (
@@ -21,4 +22,9 @@ func (server *Server) authorizeUser(ctx context.Context) (*token.Payload, error)
 		return nil, fmt.Errorf("missing authorization header")
 	}
 	authHeader := values[0]
+	//<authorization-type> <authorization-data>
+	fields := strings.Fields(authHeader)
+	if len(fields) < 2 {
+		return nil, fmt.Errorf("invalid authorization header format")
+	}
 }
