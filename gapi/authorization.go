@@ -10,6 +10,7 @@ import (
 
 const (
 	authorizationHeader = "authorization"
+	authorizationBearer = "bearer"
 )
 
 func (server *Server) authorizeUser(ctx context.Context) (*token.Payload, error) {
