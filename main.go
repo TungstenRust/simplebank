@@ -15,18 +15,24 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/lib/pq"
 	"github.com/rakyll/statik/fs"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
 	"net"
 	"net/http"
+	"os"
 )
 
 func main() {
+
 	config, err := util.LoadConfig(".")
 	if err != nil {
 		log.Fatal().Msg("Cannot load config:")
+	}
+	if config.Environment == "development" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 	conn, err := sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {
@@ -63,7 +69,7 @@ func runGrpcServer(config util.Config, store db.Store) {
 	if err != nil {
 		log.Fatal().Msg("cannot create listener :")
 	}
-	log.Printf("start gRPC server at %s", listener.Addr().String())
+	log.Info().Msgf("start gRPC server at %s", listener.Addr().String())
 	err = grpcServer.Serve(listener)
 	if err != nil {
 		log.Fatal().Msg("cannot start gRPC server: ")
@@ -104,7 +110,7 @@ func runGatewayServer(config util.Config, store db.Store) {
 	if err != nil {
 		log.Fatal().Msg("cannot create listener:")
 	}
-	log.Printf("start HTTP Gateway server at %s", listener.Addr().String())
+	log.Info().Msgf("start HTTP Gateway server at %s", listener.Addr().String())
 	err = http.Serve(listener, mux)
 	if err != nil {
 		log.Fatal().Msg("cannot start HTTP Gateway server")
