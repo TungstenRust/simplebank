@@ -1,8 +1,16 @@
 package worker
 
-import "github.com/hibiken/asynq"
+import (
+	"context"
+	"github.com/hibiken/asynq"
+)
 
 type TaskDistributor interface {
+	DistributeTaskSendVerifyEmail(
+		ctx context.Context,
+		payload *PayloadSendVerifyEmail,
+		opts ...asynq.Option,
+	) error
 }
 
 type RedisTaskDistributor struct {
@@ -11,4 +19,7 @@ type RedisTaskDistributor struct {
 
 func NewRedisTaskDistributor(redisOpt asynq.RedisClientOpt) TaskDistributor {
 	client := asynq.NewClient(redisOpt)
+	return &RedisTaskDistributor{
+		client: client,
+	}
 }
