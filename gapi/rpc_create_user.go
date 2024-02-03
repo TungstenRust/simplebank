@@ -37,6 +37,7 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 		}
 		return nil, status.Errorf(codes.Unimplemented, "failed to create user: %s", err)
 	}
+	// Send verification
 	rsp := &pb.CreateUserResponse{
 		User: convertUser(user),
 	}
