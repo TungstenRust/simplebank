@@ -40,6 +40,7 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to create user: %s", err)
 	}
+	// TODO: use db transaction
 	taskPayload := &worker.PayloadSendVerifyEmail{
 		Username: user.Username,
 	}
