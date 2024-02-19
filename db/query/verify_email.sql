@@ -1,3 +1,4 @@
+-- name: CreateVerifyEmail :one
 INSERT INTO verify_emails(
     username,
     email,
