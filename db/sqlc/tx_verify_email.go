@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 // TransferTxParams  contains the input parameters of the transfer transaction
@@ -23,6 +24,20 @@ func (store *SQLStore) VerifyEmailTx(ctx context.Context, arg VerifyEmailTxParam
 	var result VerifyEmailTxResult
 	err := store.execTX(ctx, func(q *Queries) error {
 		var err error
+		result.VerifyEmail, err = q.UpdateVerifyEmail(ctx, UpdateVerifyEmailParams{
+			ID:         arg.EmailId,
+			SecretCode: arg.SecretCode,
+		})
+		if err != nil {
+			return err
+		}
+		result.User, err = q.UpdateUser(ctx, UpdateUserParams{
+			Username: result.VerifyEmail.Username,
+			IsEmailVerified: sql.NullBool{
+				Bool:  true,
+				Valid: true,
+			},
+		})
 		return err
 	})
 	return result, err

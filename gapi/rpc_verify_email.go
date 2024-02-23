@@ -2,9 +2,12 @@ package gapi
 
 import (
 	"context"
+	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/pb"
 	"github.com/TungstenRust/simplebank/val"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (server *Server) VerifyEmail(ctx context.Context, req *pb.VerifyEmailRequest) (*pb.VerifyEmailResponse, error) {
@@ -12,8 +15,17 @@ func (server *Server) VerifyEmail(ctx context.Context, req *pb.VerifyEmailReques
 	if violations != nil {
 		return nil, invalidArgumentError(violations)
 	}
+	txResult, err := server.store.VerifyEmailTx(ctx, db.VerifyEmailTxParams{
+		EmailId:    req.GetEmailId(),
+		SecretCode: req.GetSecretCode(),
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to vrify email")
 
-	rsp := &pb.VerifyEmailResponse{}
+	}
+	rsp := &pb.VerifyEmailResponse{
+		IsVerified: txResult.User.IsEmailVerified,
+	}
 	return rsp, nil
 }
 func validateVerifyEmailRequest(req *pb.VerifyEmailRequest) (violations []*errdetails.BadRequest_FieldViolation) {
