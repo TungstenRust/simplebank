@@ -51,5 +51,4 @@ func ValidateEmail(value string) error {
 		return fmt.Errorf("is not a valid email address")
 	}
 	return nil
-
 }
