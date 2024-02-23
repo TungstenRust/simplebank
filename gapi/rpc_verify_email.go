@@ -17,17 +17,11 @@ func (server *Server) VerifyEmail(ctx context.Context, req *pb.VerifyEmailReques
 	return rsp, nil
 }
 func validateVerifyEmailRequest(req *pb.VerifyEmailRequest) (violations []*errdetails.BadRequest_FieldViolation) {
-	if err := val.ValidateUsername(req.GetUsername()); err != nil {
-		violations = append(violations, fieldValidation("username", err))
+	if err := val.ValidateEmailId(req.GetEmailId()); err != nil {
+		violations = append(violations, fieldValidation("email_id", err))
 	}
-	if err := val.ValidatePassword(req.GetPassword()); err != nil {
-		violations = append(violations, fieldValidation("password", err))
-	}
-	if err := val.ValidateFullname(req.GetFullName()); err != nil {
-		violations = append(violations, fieldValidation("full_name", err))
-	}
-	if err := val.ValidateEmail(req.GetEmail()); err != nil {
-		violations = append(violations, fieldValidation("email", err))
+	if err := val.ValidateSecretCode(req.GetSecretCode()); err != nil {
+		violations = append(violations, fieldValidation("secret_code", err))
 	}
 	return violations
 }
