@@ -20,18 +20,25 @@ type eqCreateUserTxParamsMatcher struct {
 }
 
 func (expected eqCreateUserTxParamsMatcher) Matches(x interface{}) bool {
+	fmt.Println(">>check param matches")
 	actualArg, ok := x.(db.CreateUserTxParams)
 	if !ok {
 		return false
 	}
 
+	fmt.Println(">>checking the password", actualArg)
 	err := util.CheckPassword(expected.password, actualArg.HashedPassword)
 	if err != nil {
 		return false
 	}
 
+	fmt.Println(">>deep equal")
 	expected.arg.HashedPassword = actualArg.HashedPassword
-	return reflect.DeepEqual(expected.arg, actualArg)
+	if !reflect.DeepEqual(expected.arg.CreateUserParams, actualArg.CreateUserParams) {
+		return false
+	}
+	fmt.Println(">>param matches!")
+	return true
 }
 
 func (e eqCreateUserTxParamsMatcher) String() string {

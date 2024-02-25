@@ -2,6 +2,7 @@ package gapi
 
 import (
 	"context"
+	"fmt"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/pb"
 	"github.com/TungstenRust/simplebank/util"
@@ -16,10 +17,12 @@ import (
 )
 
 func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
+	fmt.Println("validate request")
 	violations := validateCreateUserRequest(req)
 	if violations != nil {
 		return nil, invalidArgumentError(violations)
 	}
+	fmt.Println("request:", req)
 	hashedPassword, err := util.HashPassword(req.GetPassword())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to hash password")
@@ -44,6 +47,7 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 			return server.taskDistributor.DistributeTaskSendVerifyEmail(ctx, taskPayload, opts...)
 		},
 	}
+	fmt.Println("create user tx", arg)
 	txResult, err := server.store.CreateUserTx(ctx, arg)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
