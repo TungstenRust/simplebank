@@ -1,22 +1,20 @@
 package gapi
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
 	mockdb "github.com/TungstenRust/simplebank/db/mock"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/pb"
 	"github.com/TungstenRust/simplebank/util"
+	mockwk "github.com/TungstenRust/simplebank/worker/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"testing"
 )
 
-type eqCreateUserParamsMatcher struct {
+type eqCreateUserTxParamsMatcher struct {
 	arg      db.CreateUserParams
 	password string
 }
@@ -36,12 +34,12 @@ func (expected eqCreateUserTxParamsMatcher) Matches(x interface{}) bool {
 	return reflect.DeepEqual(expected.arg, actualArg)
 }
 
-func (e eqCreateUserParamsMatcher) String() string {
+func (e eqCreateUserTxParamsMatcher) String() string {
 	return fmt.Sprintf("matches arg %v and password %v", e.arg, e.password)
 }
 
-func EqCreateUserTxParams(arg db.CreateUserTxParams, password string) gomock.Matcher {
-	return eqCreateUserTxParamsMatcher{arg, password}
+func EqCreateUserTxParams(arg db.CreateUserTxParams, password string, user db.User) gomock.Matcher {
+	return eqCreateUserTxParamsMatcher{arg, password, user}
 }
 
 func randomUser(t *testing.T) (user db.User, password string) {
@@ -84,13 +82,13 @@ func TestCreateUserAPI(t *testing.T) {
 					},
 				}
 				store.EXPECT().
-					CreateUserTx(gomock.Any(), EqCreateUserTxParams(arg, password)).
+					CreateUserTx(gomock.Any(), EqCreateUserTxParams(arg, password, user)).
 					Times(1).
-					Return(db.CreateUserTxParams{User: user}, nil)
+					Return(db.CreateUserTxResult{User: user}, nil)
 			},
 			checkResponse: func(t *testing.T, res *pb.CreateUserResponse, err error) {
 				require.NoError(t, err)
-				require.NotNilf(t, res)
+				require.NotNil(t, res)
 				createdUser := res.GetUser()
 				require.Equal(t, user.Username, createdUser.Username)
 				require.Equal(t, user.FullName, createdUser.FullName)
@@ -109,19 +107,11 @@ func TestCreateUserAPI(t *testing.T) {
 			store := mockdb.NewMockStore(ctrl)
 			tc.buildStubs(store)
 
-			server := newTestServer(t, store)
-			recorder := httptest.NewRecorder()
+			taskDistributor := mockwk.NewMockTaskDistributor(ctrl)
 
-			// Marshal body data to JSON
-			data, err := json.Marshal(tc.body)
-			require.NoError(t, err)
-
-			url := "/users"
-			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-			require.NoError(t, err)
-
-			server.router.ServeHTTP(recorder, request)
-			tc.checkResponse(recorder)
+			server := newTestServer(t, store, taskDistributor)
+			res, err := server.CreateUser(context.Background(), tc.req)
+			tc.checkResponse(t, res, err)
 		})
 	}
 }
