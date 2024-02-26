@@ -1,71 +1,18 @@
 package gapi
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
 	mockdb "github.com/TungstenRust/simplebank/db/mock"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/pb"
-	"github.com/TungstenRust/simplebank/util"
 	"github.com/TungstenRust/simplebank/worker"
 	mockwk "github.com/TungstenRust/simplebank/worker/mock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"reflect"
 	"testing"
 )
-
-type eqCreateUserTxParamsMatcher struct {
-	arg      db.CreateUserTxParams
-	password string
-	user     db.User
-}
-
-func (expected eqCreateUserTxParamsMatcher) Matches(x interface{}) bool {
-	actualArg, ok := x.(db.CreateUserTxParams)
-	if !ok {
-		return false
-	}
-
-	err := util.CheckPassword(expected.password, actualArg.HashedPassword)
-	if err != nil {
-		return false
-	}
-
-	expected.arg.HashedPassword = actualArg.HashedPassword
-	if !reflect.DeepEqual(expected.arg.CreateUserParams, actualArg.CreateUserParams) {
-		return false
-	}
-
-	err = actualArg.AfterCreate(expected.user)
-	return err == nil
-}
-
-func (e eqCreateUserTxParamsMatcher) String() string {
-	return fmt.Sprintf("matches arg %v and password %v", e.arg, e.password)
-}
-
-func EqCreateUserTxParams(arg db.CreateUserTxParams, password string, user db.User) gomock.Matcher {
-	return eqCreateUserTxParamsMatcher{arg, password, user}
-}
-
-func randomUser(t *testing.T, role string) (user db.User, password string) {
-	password = util.RandomString(6)
-	hashedPassword, err := util.HashPassword(password)
-	require.NoError(t, err)
-
-	user = db.User{
-		Username:       util.RandomOwner(),
-		Role:           role,
-		HashedPassword: hashedPassword,
-		FullName:       util.RandomOwner(),
-		Email:          util.RandomEmail(),
-	}
-	return
-}
 
 func TestCreateUserAPI(t *testing.T) {
 	user, password := randomUser(t, util.DepositorRole)
