@@ -1,142 +1,165 @@
 package gapi
 
 import (
+	"context"
 	"database/sql"
 	mockdb "github.com/TungstenRust/simplebank/db/mock"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/pb"
-	"github.com/TungstenRust/simplebank/worker"
-	mockwk "github.com/TungstenRust/simplebank/worker/mock"
+	"github.com/TungstenRust/simplebank/token"
+	"github.com/TungstenRust/simplebank/util"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"testing"
+	"time"
 )
 
-func TestCreateUserAPI(t *testing.T) {
-	user, password := randomUser(t, util.DepositorRole)
+func TestUpdateUserAPI(t *testing.T) {
+	user, _ := randomUser(t)
+
+	newName := util.RandomOwner()
+	newEmail := util.RandomEmail()
+	invalidEmail := "invalid-email"
 
 	testCases := []struct {
 		name          string
-		req           *pb.CreateUserRequest
-		buildStubs    func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor)
-		checkResponse func(t *testing.T, res *pb.CreateUserResponse, err error)
+		req           *pb.UpdateUserRequest
+		buildStubs    func(store *mockdb.MockStore)
+		buildContext  func(t *testing.T, tokenMaker token.Maker) context.Context
+		checkResponse func(t *testing.T, res *pb.UpdateUserResponse, err error)
 	}{
 		{
 			name: "OK",
-			req: &pb.CreateUserRequest{
+			req: &pb.UpdateUserRequest{
 				Username: user.Username,
-				Password: password,
-				FullName: user.FullName,
-				Email:    user.Email,
+				FullName: &newName,
+				Email:    &newEmail,
 			},
-			buildStubs: func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor) {
-				arg := db.CreateUserTxParams{
-					CreateUserParams: db.CreateUserParams{
-						Username: user.Username,
-						FullName: user.FullName,
-						Email:    user.Email,
+			buildStubs: func(store *mockdb.MockStore) {
+				arg := db.UpdateUserParams{
+					Username: user.Username,
+					FullName: sql.NullString{
+						String: newName,
+						Valid:  true,
+					},
+					Email: sql.NullString{
+						String: newEmail,
+						Valid:  true,
 					},
 				}
-				store.EXPECT().
-					CreateUserTx(gomock.Any(), EqCreateUserTxParams(arg, password, user)).
-					Times(1).
-					Return(db.CreateUserTxResult{User: user}, nil)
-
-				taskPayload := &worker.PayloadSendVerifyEmail{
-					Username: user.Username,
+				updatedUser := db.User{
+					Username:          user.Username,
+					HashedPassword:    user.HashedPassword,
+					FullName:          newName,
+					Email:             newEmail,
+					PasswordChangedAt: user.PasswordChangedAt,
+					CreatedAt:         user.CreatedAt,
+					IsEmailVerified:   user.IsEmailVerified,
 				}
-				taskDistributor.EXPECT().
-					DistributeTaskSendVerifyEmail(gomock.Any(), taskPayload, gomock.Any()).
+				store.EXPECT().
+					UpdateUser(gomock.Any(), gomock.Eq(arg)).
 					Times(1).
-					Return(nil)
+					Return(updatedUser, nil)
 			},
-			checkResponse: func(t *testing.T, res *pb.CreateUserResponse, err error) {
+			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
+				return newContextWithBearerToken(t, tokenMaker, user.Username, time.Minute)
+			},
+			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.NoError(t, err)
 				require.NotNil(t, res)
-				createdUser := res.GetUser()
-				require.Equal(t, user.Username, createdUser.Username)
-				require.Equal(t, user.FullName, createdUser.FullName)
-				require.Equal(t, user.Email, createdUser.Email)
+				updatedUser := res.GetUser()
+				require.Equal(t, user.Username, updatedUser.Username)
+				require.Equal(t, newName, updatedUser.FullName)
+				require.Equal(t, newEmail, updatedUser.Email)
 			},
 		},
 		{
-			name: "InternalError",
-			req: &pb.CreateUserRequest{
+			name: "UserNotFound",
+			req: &pb.UpdateUserRequest{
 				Username: user.Username,
-				Password: password,
-				FullName: user.FullName,
-				Email:    user.Email,
+				FullName: &newName,
+				Email:    &newEmail,
 			},
-			buildStubs: func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor) {
+			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreateUserTx(gomock.Any(), gomock.Any()).
-					Times(1).
-					Return(db.CreateUserTxResult{}, sql.ErrConnDone)
-
-				taskDistributor.EXPECT().
-					DistributeTaskSendVerifyEmail(gomock.Any(), gomock.Any(), gomock.Any()).
-					Times(0)
+					UpdateUser(gomock.Any(), gomock.Any()).Times(1).Return(db.User{}, sql.ErrNoRows)
 			},
-			checkResponse: func(t *testing.T, res *pb.CreateUserResponse, err error) {
+			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
+				return newContextWithBearerToken(t, tokenMaker, user.Username, time.Minute)
+			},
+			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.Error(t, err)
 				st, ok := status.FromError(err)
 				require.True(t, ok)
-				require.Equal(t, codes.Internal, st.Code())
-			},
-		},
-		{
-			name: "DuplicateUsername",
-			req: &pb.CreateUserRequest{
-				Username: user.Username,
-				Password: password,
-				FullName: user.FullName,
-				Email:    user.Email,
-			},
-			buildStubs: func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor) {
-				store.EXPECT().
-					CreateUserTx(gomock.Any(), gomock.Any()).
-					Times(1).
-					Return(db.CreateUserTxResult{}, db.ErrUniqueViolation)
-
-				taskDistributor.EXPECT().
-					DistributeTaskSendVerifyEmail(gomock.Any(), gomock.Any(), gomock.Any()).
-					Times(0)
-			},
-			checkResponse: func(t *testing.T, res *pb.CreateUserResponse, err error) {
-				require.Error(t, err)
-				st, ok := status.FromError(err)
-				require.True(t, ok)
-				require.Equal(t, codes.AlreadyExists, st.Code())
+				require.Equal(t, codes.NotFound, st.Code())
 			},
 		},
 		{
 			name: "InvalidEmail",
-			req: &pb.CreateUserRequest{
+			req: &pb.UpdateUserRequest{
 				Username: user.Username,
-				Password: password,
-				FullName: user.FullName,
-				Email:    "invalid-email",
+				FullName: &newName,
+				Email:    &invalidEmail,
 			},
-			buildStubs: func(store *mockdb.MockStore, taskDistributor *mockwk.MockTaskDistributor) {
+			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					CreateUserTx(gomock.Any(), gomock.Any()).
-					Times(0)
-
-				taskDistributor.EXPECT().
-					DistributeTaskSendVerifyEmail(gomock.Any(), gomock.Any(), gomock.Any()).
-					Times(0)
+					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, sql.ErrNoRows)
 			},
-			checkResponse: func(t *testing.T, res *pb.CreateUserResponse, err error) {
+			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
+				return newContextWithBearerToken(t, tokenMaker, user.Username, time.Minute)
+			},
+			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.Error(t, err)
 				st, ok := status.FromError(err)
 				require.True(t, ok)
 				require.Equal(t, codes.InvalidArgument, st.Code())
 			},
 		},
+		{
+			name: "ExpiredToken",
+			req: &pb.UpdateUserRequest{
+				Username: user.Username,
+				FullName: &newName,
+				Email:    &newEmail,
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, sql.ErrNoRows)
+			},
+			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
+				return newContextWithBearerToken(t, tokenMaker, user.Username, -time.Minute)
+			},
+			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
+				require.Error(t, err)
+				st, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.Unauthenticated, st.Code())
+			},
+		},
+		{
+			name: "NoAuthorization",
+			req: &pb.UpdateUserRequest{
+				Username: user.Username,
+				FullName: &newName,
+				Email:    &newEmail,
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, sql.ErrNoRows)
+			},
+			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
+				return context.Background()
+			},
+			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
+				require.Error(t, err)
+				st, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.Unauthenticated, st.Code())
+			},
+		},
 	}
-
 	for i := range testCases {
 		tc := testCases[i]
 
@@ -145,14 +168,11 @@ func TestCreateUserAPI(t *testing.T) {
 			defer storeCtrl.Finish()
 			store := mockdb.NewMockStore(storeCtrl)
 
-			taskCtrl := gomock.NewController(t)
-			defer taskCtrl.Finish()
-			taskDistributor := mockwk.NewMockTaskDistributor(taskCtrl)
+			tc.buildStubs(store)
+			server := newTestServer(t, store, nil)
 
-			tc.buildStubs(store, taskDistributor)
-			server := newTestServer(t, store, taskDistributor)
-
-			res, err := server.CreateUser(context.Background(), tc.req)
+			ctx := tc.buildContext(t, server.tokenMaker)
+			res, err := server.UpdateUser(ctx, tc.req)
 			tc.checkResponse(t, res, err)
 		})
 	}
