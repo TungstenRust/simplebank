@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/util"
@@ -43,9 +44,9 @@ func (processor *RedisTaskProcessor) ProcessTaskSendVerifyEmail(ctx context.Cont
 	}
 	user, err := processor.store.GetUser(ctx, payload.Username)
 	if err != nil {
-		//		if err == db.ErrRecordNotFound {
-		//			return fmt.Errorf("user doesn't exist: %w", asynq.SkipRetry)
-		//		}
+		if errors.Is(err, db.ErrRecordNotFound) {
+			return fmt.Errorf("user doesn't exist: %w", asynq.SkipRetry)
+		}
 		return fmt.Errorf("failed to get user: %w", err)
 	}
 

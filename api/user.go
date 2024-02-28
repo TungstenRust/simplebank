@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	"github.com/TungstenRust/simplebank/util"
 	"github.com/gin-gonic/gin"
@@ -88,7 +89,7 @@ func (server *Server) loginUser(ctx *gin.Context) {
 	}
 	user, err := server.store.GetUser(ctx, req.Username)
 	if err != nil {
-		if err == db.ErrRecordNotFound {
+		if errors.Is(err, db.ErrRecordNotFound) {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
 			return
 		}
