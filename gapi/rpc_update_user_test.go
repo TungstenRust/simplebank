@@ -84,7 +84,7 @@ func TestUpdateUserAPI(t *testing.T) {
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					UpdateUser(gomock.Any(), gomock.Any()).Times(1).Return(db.User{}, sql.ErrNoRows)
+					UpdateUser(gomock.Any(), gomock.Any()).Times(1).Return(db.User{}, db.ErrRecordNotFound)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
 				return newContextWithBearerToken(t, tokenMaker, user.Username, time.Minute)
@@ -105,7 +105,7 @@ func TestUpdateUserAPI(t *testing.T) {
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, sql.ErrNoRows)
+					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, db.ErrRecordNotFound)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
 				return newContextWithBearerToken(t, tokenMaker, user.Username, time.Minute)
@@ -126,7 +126,7 @@ func TestUpdateUserAPI(t *testing.T) {
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, sql.ErrNoRows)
+					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, db.ErrRecordNotFound)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
 				return newContextWithBearerToken(t, tokenMaker, user.Username, -time.Minute)
@@ -147,7 +147,7 @@ func TestUpdateUserAPI(t *testing.T) {
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
-					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, sql.ErrNoRows)
+					UpdateUser(gomock.Any(), gomock.Any()).Times(0).Return(db.User{}, db.ErrRecordNotFound)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
 				return context.Background()
