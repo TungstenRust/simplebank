@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/TungstenRust/simplebank/api"
 	db "github.com/TungstenRust/simplebank/db/sqlc"
 	_ "github.com/TungstenRust/simplebank/doc/statik"
@@ -115,7 +116,10 @@ func runGrpcServer(ctx context.Context, waitgroup *errgroup.Group, config util.C
 		log.Info().Msgf("start gRPC server at %s", listener.Addr().String())
 		err = grpcServer.Serve(listener)
 		if err != nil {
-			log.Error().Err(err).Msg("cannot start gRPC server: ")
+			if errors.Is(err, grpc.ErrServerStopped) {
+				return nil
+			}
+			log.Error().Err(err).Msg("gRPC server failed to serve ")
 			return err
 		}
 		return nil
@@ -166,6 +170,9 @@ func runGatewayServer(ctx context.Context, waitGroup *errgroup.Group, config uti
 		log.Info().Msgf("start HTTP Gateway server at %s", httpServer.Addr)
 		err = httpServer.ListenAndServe()
 		if err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return nil
+			}
 			log.Error().Err(err).Msg("HTTP Gateway server failed to serve")
 			return err
 		}
