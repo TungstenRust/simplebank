@@ -88,6 +88,13 @@ func runTaskProcessor(ctx context.Context, waitgroup *errgroup.Group, config uti
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to task Processor:")
 	}
+	waitgroup.Go(func() error {
+		<-ctx.Done()
+		log.Info().Msg("graceful shutdown task processor")
+		taskProcessor.Shutdown()
+		log.Info().Msg("task processor is stopped")
+		return nil
+	})
 }
 
 func runGrpcServer(ctx context.Context, waitgroup *errgroup.Group, config util.Config, store db.Store, taskDistributor worker.TaskDistributor) {

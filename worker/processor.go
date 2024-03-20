@@ -51,3 +51,7 @@ func (processor *RedisTaskProcessor) Start() error {
 	mux.HandleFunc(TaskSendVerifyEmail, processor.ProcessTaskSendVerifyEmail)
 	return processor.server.Start(mux)
 }
+
+func (processor *RedisTaskProcessor) Shutdown() {
+	processor.server.Shutdown()
+}
